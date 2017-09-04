@@ -43,10 +43,10 @@ int main(int argc, char **argv)
     pose.pose.position.y = 0;
     pose.pose.position.z = 2;
 
-//    pose.pose.orientation.x = 0;
-//    pose.pose.orientation.y = 0;
-//    pose.pose.orientation.z = sqrt(0.5);
-//    pose.pose.orientation.w = sqrt(0.5);
+    pose.pose.orientation.x = 0;
+    pose.pose.orientation.y = 0;
+    pose.pose.orientation.z = 0;
+    pose.pose.orientation.w = 0;
 
     //send a few setpoints before starting
     for(int i = 100; ros::ok() && i > 0; --i){
