@@ -43,12 +43,19 @@ int main(int argc, char **argv)
     pose.pose.position.y = 0;
     pose.pose.position.z = 2;
 
+//    pose.pose.orientation.x = 0;
+//    pose.pose.orientation.y = 0;
+//    pose.pose.orientation.z = sqrt(0.5);
+//    pose.pose.orientation.w = sqrt(0.5);
+
     //send a few setpoints before starting
     for(int i = 100; ros::ok() && i > 0; --i){
         local_pos_pub.publish(pose);
         ros::spinOnce();
         rate.sleep();
     }
+
+//    pose.pose.position.x = 5;
 
     mavros_msgs::SetMode offb_set_mode;
     offb_set_mode.request.custom_mode = "OFFBOARD";
@@ -78,7 +85,7 @@ int main(int argc, char **argv)
         }
 
         local_pos_pub.publish(pose);
-
+	
         ros::spinOnce();
         rate.sleep();
     }
