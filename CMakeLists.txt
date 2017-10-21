@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   sensor_msgs
   std_msgs
+  cv_bridge
 )
 
 catkin_package(
@@ -15,6 +16,10 @@ catkin_package(
 #  LIBRARIES drone_control
 #  CATKIN_DEPENDS geometry_msgs mavros roscpp rospy sensor_msgs std_msgs
 #  DEPENDS system_lib
+)
+
+find_package(
+    OpenCV REQUIRED
 )
 
 include_directories(
@@ -26,4 +31,6 @@ add_executable(offb_node src/offb_node.cpp)
 add_dependencies(offb_node ${catkin_INCLUDE_DIRS})
 target_link_libraries(offb_node ${catkin_LIBRARIES})
 
-
+add_executable(drone_tracker src/drone_tracker.cpp)
+add_dependencies(drone_tracker ${catkin_INCLUDE_DIRS})
+target_link_libraries(drone_tracker ${catkin_LIBRARIES})
