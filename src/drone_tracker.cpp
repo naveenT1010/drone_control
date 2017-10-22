@@ -1,4 +1,5 @@
 #include <ros/ros.h>
+#include <image_transport/image_transport.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
@@ -6,12 +7,15 @@
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/State.h>
 #include <cv_bridge/cv_bridge.h>
+#include <opencv2/opencv.hpp>
 #include <opencv2/tracking.hpp>
 #include <iostream>
 
 using namespace std;
 using namespace cv;
 //using namespace ros;
+
+Rect2d roi;
 
 void drone_tracker(const sensor_msgs::ImageConstPtr& drone_feed){
     /*
@@ -22,10 +26,20 @@ void drone_tracker(const sensor_msgs::ImageConstPtr& drone_feed){
     */
     Mat feed;
     feed = cv_bridge::toCvCopy(drone_feed,sensor_msgs::image_encodings::BGR8)->image;
-    imshow("Feed", feed);
-    if(waitKey(100)==27)
-	    return ;
-
+    Ptr<Tracker> tracker = Tracker::create("KCF");
+    if(roi.width==0 || roi.height==0){
+	    selectROI("tracker",feed);
+	    tracker->init(feed,roi);
+	    ROS_INFO("Tracking Started");
+    }
+    else{
+            tracker->update(feed,roi);
+	    rectangle(feed,roi,Scalar(0,0,255),2,1);
+	    imshow("Tracked", feed);
+	    if(waitKey(100)==27)
+		   return; 
+    }
+    //cout<<"version "<<CV_MAJOR_VERSION<<"."<<CV_MINOR_VERSION<<endl;
 }
 
 mavros_msgs::State current_state;
@@ -36,6 +50,7 @@ void state_cb(const mavros_msgs::State::ConstPtr& msg){
 int main(int argc, char **argv){
     ros::init(argc,argv,"drone_tracker");
     ros::NodeHandle nh;
+    image_transport::ImageTransport it(nh);
 
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>("mavros/state", 10, state_cb);
     ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_position/local",10);
@@ -44,7 +59,7 @@ int main(int argc, char **argv){
 
     //Publisher and Subscriber for drone camera
     ros::Publisher tracked = nh.advertise<sensor_msgs::Image>("kcf_track", 10);
-    ros::Subscriber cam_feed = nh.subscribe<sensor_msgs::Image>("drone/camera/image_raw", 10, drone_tracker);
+    image_transport::Subscriber cam_feed = it.subscribe("drone/camera/image_raw", 10, drone_tracker);
 
     //the setpoint publishing rate MUST be faster than 2Hz
     ros::Rate rate(20.0);
