@@ -15,29 +15,43 @@ using namespace std;
 using namespace cv;
 //using namespace ros;
 
-Rect2d roi;
+class tracker_class{
+    Rect2d roi_;
+    Mat feed_;
+    Ptr<Tracker> tracker_;
+    
+    ros::NodeHandle nh_;
+    cv_bridge::CvImagePtr cv_ptr_;
+    image_transport::ImageTransport it_;
+    image_transport::Publisher pub_;
+    image_transport::Subscriber sub_;
 
-void drone_tracker(const sensor_msgs::ImageConstPtr& drone_feed){
+public:
+    tracker_class() : it_(nh_){
+	sub_ = it_.subscribe("drone/camera/image_raw", 10, &tracker_class::imageCb, this);
+	pub_ = it_.advertise("Track Frame", 10, true);
+    }
+    void imageCb(const sensor_msgs::ImageConstPtr& drone_feed);
+};
+
+void tracker_class::imageCb(const sensor_msgs::ImageConstPtr& drone_feed){
     /*
      * Need to do following
      * 1. get image msg to opencv image
      * 2. apply the tracker
      * 3. show the feed.
     */
-    Mat feed;
-    feed = cv_bridge::toCvCopy(drone_feed,sensor_msgs::image_encodings::BGR8)->image;
-    Ptr<Tracker> tracker = Tracker::create("KCF");
-    if(roi.width==0 || roi.height==0){
-	    selectROI("tracker",feed);
-	    tracker->init(feed,roi);
+    cv_ptr_ = cv_bridge::toCvCopy(drone_feed,sensor_msgs::image_encodings::BGR8);
+    tracker_ = Tracker::create("KCF");
+    if(roi_.width==0 || roi_.height==0){
+	    selectROI("tracker",cv_ptr_->image);
+	    tracker_->init(cv_ptr_->image,roi_);
 	    ROS_INFO("Tracking Started");
     }
     else{
-            tracker->update(feed,roi);
-	    rectangle(feed,roi,Scalar(0,0,255),2,1);
-	    imshow("Tracked", feed);
-	    if(waitKey(100)==27)
-		   return; 
+            tracker_->update(cv_ptr_->image,roi_);
+	    rectangle(cv_ptr_->image,roi_,Scalar(0,0,255),2,1);
+    	    pub_.publish(cv_ptr_->toImageMsg());
     }
     //cout<<"version "<<CV_MAJOR_VERSION<<"."<<CV_MINOR_VERSION<<endl;
 }
@@ -50,16 +64,12 @@ void state_cb(const mavros_msgs::State::ConstPtr& msg){
 int main(int argc, char **argv){
     ros::init(argc,argv,"drone_tracker");
     ros::NodeHandle nh;
-    image_transport::ImageTransport it(nh);
+    tracker_class obj;
 
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>("mavros/state", 10, state_cb);
     ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_position/local",10);
     ros::ServiceClient arming_client = nh.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
     ros::ServiceClient set_mode_client = nh.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
-
-    //Publisher and Subscriber for drone camera
-    ros::Publisher tracked = nh.advertise<sensor_msgs::Image>("kcf_track", 10);
-    image_transport::Subscriber cam_feed = it.subscribe("drone/camera/image_raw", 10, drone_tracker);
 
     //the setpoint publishing rate MUST be faster than 2Hz
     ros::Rate rate(20.0);
