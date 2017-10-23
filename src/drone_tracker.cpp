@@ -14,11 +14,12 @@
 using namespace std;
 using namespace cv;
 //using namespace ros;
-
+bool start_=true;
 class tracker_class{
     Rect2d roi_;
     Mat feed_;
     Ptr<Tracker> tracker_;
+    //bool start_;
     
     ros::NodeHandle nh_;
     cv_bridge::CvImagePtr cv_ptr_;
@@ -27,9 +28,12 @@ class tracker_class{
     image_transport::Subscriber sub_;
 
 public:
-    tracker_class() : it_(nh_){
+//    ros::NodeHandle nh_;
+    tracker_class():it_(nh_){
+	start_ = true;
+	ROS_INFO("Started Node");
 	sub_ = it_.subscribe("drone/camera/image_raw", 10, &tracker_class::imageCb, this);
-	pub_ = it_.advertise("Track Frame", 10, true);
+	pub_ = it_.advertise("drone_tracking", 10, true);
     }
     void imageCb(const sensor_msgs::ImageConstPtr& drone_feed);
 };
@@ -43,10 +47,11 @@ void tracker_class::imageCb(const sensor_msgs::ImageConstPtr& drone_feed){
     */
     cv_ptr_ = cv_bridge::toCvCopy(drone_feed,sensor_msgs::image_encodings::BGR8);
     tracker_ = Tracker::create("KCF");
-    if(roi_.width==0 || roi_.height==0){
+    if(start_){
 	    selectROI("tracker",cv_ptr_->image);
 	    tracker_->init(cv_ptr_->image,roi_);
 	    ROS_INFO("Tracking Started");
+	    start_ = false;
     }
     else{
             tracker_->update(cv_ptr_->image,roi_);
@@ -56,20 +61,20 @@ void tracker_class::imageCb(const sensor_msgs::ImageConstPtr& drone_feed){
     //cout<<"version "<<CV_MAJOR_VERSION<<"."<<CV_MINOR_VERSION<<endl;
 }
 
-mavros_msgs::State current_state;
-void state_cb(const mavros_msgs::State::ConstPtr& msg){
-	current_state = *msg;
-}
+//mavros_msgs::State current_state;
+//void state_cb(const mavros_msgs::State::ConstPtr& msg){
+//	current_state = *msg;
+//}
 
 int main(int argc, char **argv){
     ros::init(argc,argv,"drone_tracker");
-    ros::NodeHandle nh;
+//    ros::NodeHandle nh;
     tracker_class obj;
-
-    ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>("mavros/state", 10, state_cb);
-    ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_position/local",10);
-    ros::ServiceClient arming_client = nh.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
-    ros::ServiceClient set_mode_client = nh.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
+/*
+    ros::Subscriber state_sub = obj.nh_.subscribe<mavros_msgs::State>("mavros/state", 10, state_cb);
+    ros::Publisher local_pos_pub = obj.nh_.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_position/local",10);
+    ros::ServiceClient arming_client = obj.nh_.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
+    ros::ServiceClient set_mode_client = obj.nh_.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
 
     //the setpoint publishing rate MUST be faster than 2Hz
     ros::Rate rate(20.0);
@@ -132,6 +137,8 @@ int main(int argc, char **argv){
         rate.sleep();
     }
 
+*/
+    ros::spin(); 
     return 0;
 	
 }
